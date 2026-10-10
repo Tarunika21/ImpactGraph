@@ -38,12 +38,12 @@ func main() {
 	mux.HandleFunc("/health", healthHandler)
 
 	server := &http.Server{
-		Addr:              ":8080",
+		Addr:              ":8081",
 		Handler:           mux,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
-	log.Println("ImpactGraph API running on http://localhost:8080")
+	log.Println("ImpactGraph API running on http://localhost:8081")
 
 	if err := server.ListenAndServe(); err != nil {
 		log.Fatal(err)
