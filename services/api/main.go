@@ -5,6 +5,8 @@ import (
 	"log"
 	"net/http"
 	"time"
+
+	"github.com/Tarunika21/ImpactGraph/services/api/internal/handlers"
 )
 
 type HealthResponse struct {
@@ -26,8 +28,6 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		log.Printf("Failed to write health response: %v", err)
 	}
@@ -36,6 +36,7 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", healthHandler)
+	mux.HandleFunc("/api/v1/compare", handlers.CompareHandler)
 
 	server := &http.Server{
 		Addr:              ":8081",
