@@ -1,7 +1,6 @@
 package services
 
 import (
-	"fmt"
 	"sort"
 	"strings"
 
@@ -9,59 +8,44 @@ import (
 )
 
 func CompareSpecs(oldSpec, newSpec models.OpenAPISpec) models.ComparisonResponse {
-	result := models.ComparisonResponse{
-		Changes: []models.Change{},
-	}
+	result := models.ComparisonResponse{Changes: []models.Change{}}
 
 	for path, oldMethods := range oldSpec.Paths {
-		newMethods, pathExists := newSpec.Paths[path]
+		newMethods := newSpec.Paths[path]
 
 		for method, oldOperation := range oldMethods {
 			endpoint := strings.ToUpper(method) + " " + path
+			newOperation, exists := newMethods[method]
 
-			newOperation, methodExists := newMethods[method]
-			if !pathExists || !methodExists {
-				result.Changes = append(result.Changes, models.Change{
-					Type:     "ENDPOINT_REMOVED",
-					Endpoint: endpoint,
-					Breaking: true,
+			if !exists {
+				addChange(&result, models.Change{
+					Type: "ENDPOINT_REMOVED", Endpoint: endpoint, Breaking: true,
 				})
 				continue
 			}
 
-			oldFields := getResponseFields(oldOperation)
-			newFields := getResponseFields(newOperation)
+			oldSchema, oldFound := getResponseSchema(oldOperation)
+			newSchema, newFound := getResponseSchema(newOperation)
 
-			for field := range oldFields {
-				if _, exists := newFields[field]; !exists {
-					result.Changes = append(result.Changes, models.Change{
-						Type:     "FIELD_REMOVED",
-						Endpoint: endpoint,
-						Field:    field,
-						Breaking: true,
-					})
-				}
+			if oldFound && !newFound {
+				addChange(&result, models.Change{
+					Type: "RESPONSE_REMOVED", Endpoint: endpoint, Breaking: true,
+				})
+				continue
+			}
+			if !oldFound || !newFound {
+				continue
 			}
 
-			for field := range newFields {
-				if _, exists := oldFields[field]; !exists {
-					result.Changes = append(result.Changes, models.Change{
-						Type:     "FIELD_ADDED",
-						Endpoint: endpoint,
-						Field:    field,
-						Breaking: false,
-					})
-				}
-			}
+			compareSchema(&result, endpoint, "", oldSchema, newSchema)
 		}
 	}
 
 	for path, newMethods := range newSpec.Paths {
 		oldMethods := oldSpec.Paths[path]
-
 		for method := range newMethods {
 			if _, exists := oldMethods[method]; !exists {
-				result.Changes = append(result.Changes, models.Change{
+				addChange(&result, models.Change{
 					Type:     "ENDPOINT_ADDED",
 					Endpoint: strings.ToUpper(method) + " " + path,
 					Breaking: false,
@@ -72,37 +56,114 @@ func CompareSpecs(oldSpec, newSpec models.OpenAPISpec) models.ComparisonResponse
 
 	sort.Slice(result.Changes, func(i, j int) bool {
 		a, b := result.Changes[i], result.Changes[j]
-		return fmt.Sprintf("%s:%s:%s", a.Endpoint, a.Type, a.Field) <
-			fmt.Sprintf("%s:%s:%s", b.Endpoint, b.Type, b.Field)
+		if a.Endpoint != b.Endpoint {
+			return a.Endpoint < b.Endpoint
+		}
+		if a.Field != b.Field {
+			return a.Field < b.Field
+		}
+		return a.Type < b.Type
 	})
 
 	result.TotalChanges = len(result.Changes)
-
-	for _, change := range result.Changes {
-		if change.Breaking {
-			result.BreakingCount++
-		}
-	}
-
 	return result
 }
 
-func getResponseFields(operation models.Operation) map[string]models.Schema {
-	fields := make(map[string]models.Schema)
-
-	response, exists := operation.Responses["200"]
+func getResponseSchema(op models.Operation) (models.Schema, bool) {
+	response, exists := op.Responses["200"]
 	if !exists {
-		return fields
+		return models.Schema{}, false
 	}
-
-	content, exists := response.Content["application/json"]
+	media, exists := response.Content["application/json"]
 	if !exists {
-		return fields
+		return models.Schema{}, false
+	}
+	return media.Schema, true
+}
+
+func compareSchema(result *models.ComparisonResponse, endpoint, prefix string, oldSchema, newSchema models.Schema) {
+	if oldSchema.Type != newSchema.Type {
+		addChange(result, models.Change{
+			Type: "TYPE_CHANGED", Endpoint: endpoint, Field: prefix,
+			OldValue: oldSchema.Type, NewValue: newSchema.Type, Breaking: true,
+		})
+		return
 	}
 
-	for name, schema := range content.Schema.Properties {
-		fields[name] = schema
+	if oldSchema.Type == "array" && oldSchema.Items != nil && newSchema.Items != nil {
+		compareSchema(result, endpoint, prefix+"[]", *oldSchema.Items, *newSchema.Items)
 	}
 
-	return fields
+	for field, oldProperty := range oldSchema.Properties {
+		fieldPath := joinPath(prefix, field)
+		newProperty, exists := newSchema.Properties[field]
+
+		if !exists {
+			addChange(result, models.Change{
+				Type: "FIELD_REMOVED", Endpoint: endpoint,
+				Field: fieldPath, Breaking: true,
+			})
+			continue
+		}
+
+		compareSchema(result, endpoint, fieldPath, oldProperty, newProperty)
+	}
+
+	for field := range newSchema.Properties {
+		if _, exists := oldSchema.Properties[field]; !exists {
+			addChange(result, models.Change{
+				Type: "FIELD_ADDED", Endpoint: endpoint,
+				Field: joinPath(prefix, field), Breaking: false,
+			})
+		}
+	}
+
+	oldRequired := toSet(oldSchema.Required)
+	newRequired := toSet(newSchema.Required)
+
+	for field := range oldRequired {
+		if _, exists := newSchema.Properties[field]; !exists {
+			continue
+		}
+		if _, exists := newRequired[field]; !exists {
+			addChange(result, models.Change{
+				Type: "REQUIRED_REMOVED", Endpoint: endpoint,
+				Field: joinPath(prefix, field), Breaking: true,
+			})
+		}
+	}
+
+	for field := range newRequired {
+		if _, exists := oldSchema.Properties[field]; !exists {
+			continue
+		}
+		if _, exists := oldRequired[field]; !exists {
+			addChange(result, models.Change{
+				Type: "REQUIRED_ADDED", Endpoint: endpoint,
+				Field: joinPath(prefix, field), Breaking: false,
+			})
+		}
+	}
+}
+
+func joinPath(prefix, field string) string {
+	if prefix == "" {
+		return field
+	}
+	return prefix + "." + field
+}
+
+func toSet(values []string) map[string]bool {
+	result := make(map[string]bool, len(values))
+	for _, value := range values {
+		result[value] = true
+	}
+	return result
+}
+
+func addChange(result *models.ComparisonResponse, change models.Change) {
+	result.Changes = append(result.Changes, change)
+	if change.Breaking {
+		result.BreakingCount++
+	}
 }

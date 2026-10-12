@@ -19,6 +19,8 @@ type MediaType struct {
 type Schema struct {
 	Type       string            `json:"type"`
 	Properties map[string]Schema `json:"properties"`
+	Required   []string          `json:"required"`
+	Items      *Schema           `json:"items,omitempty"`
 }
 
 type ComparisonRequest struct {
@@ -30,6 +32,8 @@ type Change struct {
 	Type     string `json:"type"`
 	Endpoint string `json:"endpoint"`
 	Field    string `json:"field,omitempty"`
+	OldValue string `json:"oldValue,omitempty"`
+	NewValue string `json:"newValue,omitempty"`
 	Breaking bool   `json:"breaking"`
 }
 
