@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 
 	"github.com/Tarunika21/ImpactGraph/services/api/internal/models"
@@ -15,7 +16,6 @@ func CompareHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var request models.ComparisonRequest
-
 	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 2<<20))
 	decoder.DisallowUnknownFields()
 
@@ -24,13 +24,25 @@ func CompareHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var extra any
+	if err := decoder.Decode(&extra); err != io.EOF {
+		http.Error(w, "Request must contain exactly one JSON object", http.StatusBadRequest)
+		return
+	}
+
 	if request.OldSpec.Paths == nil || request.NewSpec.Paths == nil {
 		http.Error(w, "Both specifications must contain paths", http.StatusBadRequest)
 		return
 	}
 
-	result := services.CompareSpecs(request.OldSpec, request.NewSpec)
+	result, err := services.CompareSpecsChecked(request.OldSpec, request.NewSpec)
+	if err != nil {
+		http.Error(w, "Schema resolution failed: "+err.Error(), http.StatusUnprocessableEntity)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
+	if err := json.NewEncoder(w).Encode(result); err != nil {
+		return
+	}
 }

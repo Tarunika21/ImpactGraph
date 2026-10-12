@@ -1,6 +1,7 @@
 package services
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 
@@ -8,6 +9,11 @@ import (
 )
 
 func CompareSpecs(oldSpec, newSpec models.OpenAPISpec) models.ComparisonResponse {
+	result, _ := CompareSpecsChecked(oldSpec, newSpec)
+	return result
+}
+
+func CompareSpecsChecked(oldSpec, newSpec models.OpenAPISpec) (models.ComparisonResponse, error) {
 	result := models.ComparisonResponse{Changes: []models.Change{}}
 
 	for path, oldMethods := range oldSpec.Paths {
@@ -37,7 +43,17 @@ func CompareSpecs(oldSpec, newSpec models.OpenAPISpec) models.ComparisonResponse
 				continue
 			}
 
-			compareSchema(&result, endpoint, "", oldSchema, newSchema)
+			resolvedOld, err := ResolveSchema(oldSchema, oldSpec)
+			if err != nil {
+				return result, fmt.Errorf("%s old schema: %w", endpoint, err)
+			}
+
+			resolvedNew, err := ResolveSchema(newSchema, newSpec)
+			if err != nil {
+				return result, fmt.Errorf("%s new schema: %w", endpoint, err)
+			}
+
+			compareSchema(&result, endpoint, "", resolvedOld, resolvedNew)
 		}
 	}
 
@@ -66,7 +82,7 @@ func CompareSpecs(oldSpec, newSpec models.OpenAPISpec) models.ComparisonResponse
 	})
 
 	result.TotalChanges = len(result.Changes)
-	return result
+	return result, nil
 }
 
 func getResponseSchema(op models.Operation) (models.Schema, bool) {
@@ -125,7 +141,7 @@ func compareSchema(result *models.ComparisonResponse, endpoint, prefix string, o
 		if _, exists := newSchema.Properties[field]; !exists {
 			continue
 		}
-		if _, exists := newRequired[field]; !exists {
+		if !newRequired[field] {
 			addChange(result, models.Change{
 				Type: "REQUIRED_REMOVED", Endpoint: endpoint,
 				Field: joinPath(prefix, field), Breaking: true,
@@ -137,7 +153,7 @@ func compareSchema(result *models.ComparisonResponse, endpoint, prefix string, o
 		if _, exists := oldSchema.Properties[field]; !exists {
 			continue
 		}
-		if _, exists := oldRequired[field]; !exists {
+		if !oldRequired[field] {
 			addChange(result, models.Change{
 				Type: "REQUIRED_ADDED", Endpoint: endpoint,
 				Field: joinPath(prefix, field), Breaking: false,

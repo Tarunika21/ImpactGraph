@@ -1,7 +1,12 @@
 package models
 
 type OpenAPISpec struct {
-	Paths map[string]map[string]Operation `json:"paths"`
+	Paths      map[string]map[string]Operation `json:"paths"`
+	Components Components                      `json:"components"`
+}
+
+type Components struct {
+	Schemas map[string]Schema `json:"schemas"`
 }
 
 type Operation struct {
@@ -17,9 +22,10 @@ type MediaType struct {
 }
 
 type Schema struct {
-	Type       string            `json:"type"`
-	Properties map[string]Schema `json:"properties"`
-	Required   []string          `json:"required"`
+	Ref        string            `json:"$ref,omitempty"`
+	Type       string            `json:"type,omitempty"`
+	Properties map[string]Schema `json:"properties,omitempty"`
+	Required   []string          `json:"required,omitempty"`
 	Items      *Schema           `json:"items,omitempty"`
 }
 
