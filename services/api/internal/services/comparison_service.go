@@ -37,6 +37,13 @@ func CompareSpecsChecked(oldSpec, newSpec models.OpenAPISpec) (models.Comparison
 				newOperation.Parameters,
 			)
 
+			compareResponseStatusCodes(
+				&result,
+				endpoint,
+				oldOperation.Responses,
+				newOperation.Responses,
+			)
+
 			oldSchema, oldFound := getResponseSchema(oldOperation)
 			newSchema, newFound := getResponseSchema(newOperation)
 
