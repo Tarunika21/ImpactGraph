@@ -10,7 +10,15 @@ type Components struct {
 }
 
 type Operation struct {
-	Responses map[string]Response `json:"responses"`
+	Parameters []Parameter         `json:"parameters,omitempty"`
+	Responses  map[string]Response `json:"responses"`
+}
+
+type Parameter struct {
+	Name     string `json:"name"`
+	In       string `json:"in"`
+	Required bool   `json:"required"`
+	Schema   Schema `json:"schema"`
 }
 
 type Response struct {
