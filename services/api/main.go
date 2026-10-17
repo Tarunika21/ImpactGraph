@@ -37,6 +37,7 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", healthHandler)
 	mux.HandleFunc("/api/v1/compare", handlers.CompareHandler)
+	mux.HandleFunc("/api/v1/impact", handlers.ImpactHandler)
 
 	server := &http.Server{
 		Addr:    "127.0.0.1:8081",

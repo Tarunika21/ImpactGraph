@@ -19,3 +19,8 @@ type ImpactResponse struct {
 	ImpactedCount     int                `json:"impactedCount"`
 	ImpactedConsumers []ImpactedConsumer `json:"impactedConsumers"`
 }
+
+type ImpactRequest struct {
+	Changes   []Change   `json:"changes"`
+	Consumers []Consumer `json:"consumers"`
+}
