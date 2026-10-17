@@ -1,11 +1,14 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
+	"github.com/Tarunika21/ImpactGraph/services/api/internal/database"
 	"github.com/Tarunika21/ImpactGraph/services/api/internal/handlers"
 )
 
@@ -38,6 +41,21 @@ func main() {
 	mux.HandleFunc("/health", healthHandler)
 	mux.HandleFunc("/api/v1/compare", handlers.CompareHandler)
 	mux.HandleFunc("/api/v1/impact", handlers.ImpactHandler)
+
+	databaseURL := os.Getenv("DATABASE_URL")
+	if databaseURL == "" {
+		log.Fatal("DATABASE_URL environment variable is required")
+	}
+
+	ctx := context.Background()
+
+	dbPool, err := database.Connect(ctx, databaseURL)
+	if err != nil {
+		log.Fatalf("Database connection failed: %v", err)
+	}
+	defer dbPool.Close()
+
+	log.Println("Connected to PostgreSQL successfully")
 
 	server := &http.Server{
 		Addr:    "127.0.0.1:8081",

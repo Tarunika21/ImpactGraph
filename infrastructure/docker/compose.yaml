@@ -1,0 +1,22 @@
+
+services:
+  postgres:
+    image: postgres:17
+    container_name: impactgraph-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: impactgraph
+      POSTGRES_PASSWORD: impactgraph_dev_password
+      POSTGRES_DB: impactgraph
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - impactgraph_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U impactgraph -d impactgraph"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  impactgraph_postgres_data:
