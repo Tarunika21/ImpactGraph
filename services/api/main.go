@@ -39,9 +39,8 @@ func main() {
 	mux.HandleFunc("/api/v1/compare", handlers.CompareHandler)
 
 	server := &http.Server{
-		Addr:              ":8081",
-		Handler:           mux,
-		ReadHeaderTimeout: 5 * time.Second,
+		Addr:    "127.0.0.1:8081",
+		Handler: mux,
 	}
 
 	log.Println("ImpactGraph API running on http://localhost:8081")
