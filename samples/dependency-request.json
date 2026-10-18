@@ -1,0 +1,6 @@
+{
+  "consumerId": "frontend-app",
+  "serviceName": "user-service",
+  "endpoint": "GET /users/{id}",
+  "fields": [ "id", "name", "email" ]
+}
