@@ -1,0 +1,11 @@
+{
+  "serviceName": "user-service",
+  "changes": [
+    {
+      "type": "FIELD_REMOVED",
+      "endpoint": "GET /users/{id}",
+      "field": "name",
+      "breaking": true
+    }
+  ]
+}

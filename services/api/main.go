@@ -62,6 +62,8 @@ func main() {
 	dependencyRepository := repositories.NewDependencyRepository(dbPool)
 	dependencyHandler := handlers.NewDependencyHandler(dependencyRepository)
 
+	storedImpactHandler := handlers.NewStoredImpactHandler(dependencyRepository)
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", healthHandler)
 	mux.HandleFunc("/api/v1/compare", handlers.CompareHandler)
@@ -69,6 +71,7 @@ func main() {
 	mux.HandleFunc("/api/v1/contracts", contractHandler.HandleContracts)
 	mux.HandleFunc("/api/v1/consumers", consumerHandler.HandleConsumers)
 	mux.HandleFunc("/api/v1/dependencies", dependencyHandler.HandleDependencies)
+	mux.HandleFunc("/api/v1/impact/stored", storedImpactHandler.Handle)
 
 	server := &http.Server{
 		Addr:              "127.0.0.1:8081",

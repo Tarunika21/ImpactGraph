@@ -106,3 +106,46 @@ func (r *DependencyRepository) GetAll(
 
 	return dependencies, nil
 }
+
+func (r *DependencyRepository) GetImpactConsumers(
+	ctx context.Context,
+	serviceName string,
+) ([]models.ImpactConsumer, error) {
+	query := `
+		SELECT c.id, c.name, d.endpoint, d.fields
+		FROM consumer_dependencies d
+		INNER JOIN consumers c ON c.id = d.consumer_id
+		WHERE d.service_name = $1
+		ORDER BY c.id, d.endpoint
+	`
+
+	rows, err := r.db.Query(ctx, query, serviceName)
+	if err != nil {
+		return nil, fmt.Errorf("query impact consumers: %w", err)
+	}
+	defer rows.Close()
+
+	consumers := []models.ImpactConsumer{}
+
+	for rows.Next() {
+		var consumer models.ImpactConsumer
+
+		err := rows.Scan(
+			&consumer.ID,
+			&consumer.Name,
+			&consumer.Endpoint,
+			&consumer.Fields,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("scan impact consumer: %w", err)
+		}
+
+		consumers = append(consumers, consumer)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate impact consumers: %w", err)
+	}
+
+	return consumers, nil
+}
