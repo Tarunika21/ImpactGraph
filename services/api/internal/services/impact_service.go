@@ -10,7 +10,7 @@ import (
 
 func AnalyzeImpact(
 	changes []models.Change,
-	consumers []models.Consumer,
+	consumers []models.ImpactConsumer,
 ) models.ImpactResponse {
 	result := models.ImpactResponse{
 		TotalConsumers:    len(consumers),

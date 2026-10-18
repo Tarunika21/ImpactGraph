@@ -16,7 +16,7 @@ func TestAnalyzeImpact(t *testing.T) {
 		},
 	}
 
-	consumers := []models.Consumer{
+	consumers := []models.ImpactConsumer{
 		{
 			ID:       "web",
 			Name:     "Web App",
@@ -69,7 +69,7 @@ func TestAnalyzeImpactEndpointRemoved(t *testing.T) {
 		},
 	}
 
-	consumers := []models.Consumer{
+	consumers := []models.ImpactConsumer{
 		{
 			ID:       "mobile",
 			Name:     "Mobile App",
@@ -95,7 +95,7 @@ func TestAnalyzeImpactNonBreaking(t *testing.T) {
 		},
 	}
 
-	consumers := []models.Consumer{
+	consumers := []models.ImpactConsumer{
 		{
 			ID:       "web",
 			Name:     "Web App",

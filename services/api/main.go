@@ -10,6 +10,7 @@ import (
 
 	"github.com/Tarunika21/ImpactGraph/services/api/internal/database"
 	"github.com/Tarunika21/ImpactGraph/services/api/internal/handlers"
+	"github.com/Tarunika21/ImpactGraph/services/api/internal/repositories"
 )
 
 type HealthResponse struct {
@@ -20,6 +21,7 @@ type HealthResponse struct {
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
+		w.Header().Set("Allow", http.MethodGet)
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
@@ -37,18 +39,12 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/health", healthHandler)
-	mux.HandleFunc("/api/v1/compare", handlers.CompareHandler)
-	mux.HandleFunc("/api/v1/impact", handlers.ImpactHandler)
-
 	databaseURL := os.Getenv("DATABASE_URL")
 	if databaseURL == "" {
 		log.Fatal("DATABASE_URL environment variable is required")
 	}
 
 	ctx := context.Background()
-
 	dbPool, err := database.Connect(ctx, databaseURL)
 	if err != nil {
 		log.Fatalf("Database connection failed: %v", err)
@@ -57,9 +53,19 @@ func main() {
 
 	log.Println("Connected to PostgreSQL successfully")
 
+	contractRepository := repositories.NewContractRepository(dbPool)
+	contractHandler := handlers.NewContractHandler(contractRepository)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/health", healthHandler)
+	mux.HandleFunc("/api/v1/compare", handlers.CompareHandler)
+	mux.HandleFunc("/api/v1/impact", handlers.ImpactHandler)
+	mux.HandleFunc("/api/v1/contracts", contractHandler.HandleContracts)
+
 	server := &http.Server{
-		Addr:    "127.0.0.1:8081",
-		Handler: mux,
+		Addr:              "127.0.0.1:8081",
+		Handler:           mux,
+		ReadHeaderTimeout: 5 * time.Second,
 	}
 
 	log.Println("ImpactGraph API running on http://localhost:8081")

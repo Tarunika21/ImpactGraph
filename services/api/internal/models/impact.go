@@ -1,6 +1,6 @@
 package models
 
-type Consumer struct {
+type ImpactConsumer struct {
 	ID       string   `json:"id"`
 	Name     string   `json:"name"`
 	Endpoint string   `json:"endpoint"`
@@ -21,6 +21,6 @@ type ImpactResponse struct {
 }
 
 type ImpactRequest struct {
-	Changes   []Change   `json:"changes"`
-	Consumers []Consumer `json:"consumers"`
+	Changes   []Change         `json:"changes"`
+	Consumers []ImpactConsumer `json:"consumers"`
 }
