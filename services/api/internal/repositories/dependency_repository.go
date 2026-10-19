@@ -129,7 +129,6 @@ func (r *DependencyRepository) GetImpactConsumers(
 
 	for rows.Next() {
 		var consumer models.ImpactConsumer
-
 		err := rows.Scan(
 			&consumer.ID,
 			&consumer.Name,
@@ -139,7 +138,6 @@ func (r *DependencyRepository) GetImpactConsumers(
 		if err != nil {
 			return nil, fmt.Errorf("scan impact consumer: %w", err)
 		}
-
 		consumers = append(consumers, consumer)
 	}
 
