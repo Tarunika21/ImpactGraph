@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 
@@ -12,22 +13,32 @@ import (
 )
 
 type AnalysisHandler struct {
-	repository *repositories.DependencyRepository
+	dependencyRepository *repositories.DependencyRepository
+	reportRepository     *repositories.ReportRepository
 }
 
 type AnalysisRequest struct {
 	ServiceName string             `json:"serviceName"`
+	OldVersion  string             `json:"oldVersion"`
+	NewVersion  string             `json:"newVersion"`
 	OldSpec     models.OpenAPISpec `json:"oldSpec"`
 	NewSpec     models.OpenAPISpec `json:"newSpec"`
 }
 
 type AnalysisResponse struct {
+	ReportID   int64                     `json:"reportId"`
 	Comparison models.ComparisonResponse `json:"comparison"`
 	Impact     models.ImpactResponse     `json:"impact"`
 }
 
-func NewAnalysisHandler(repository *repositories.DependencyRepository) *AnalysisHandler {
-	return &AnalysisHandler{repository: repository}
+func NewAnalysisHandler(
+	dependencyRepository *repositories.DependencyRepository,
+	reportRepository *repositories.ReportRepository,
+) *AnalysisHandler {
+	return &AnalysisHandler{
+		dependencyRepository: dependencyRepository,
+		reportRepository:     reportRepository,
+	}
 }
 
 func (h *AnalysisHandler) Handle(w http.ResponseWriter, r *http.Request) {
@@ -38,6 +49,7 @@ func (h *AnalysisHandler) Handle(w http.ResponseWriter, r *http.Request) {
 	}
 
 	defer r.Body.Close()
+
 	var request AnalysisRequest
 	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 2<<20))
 	decoder.DisallowUnknownFields()
@@ -54,8 +66,22 @@ func (h *AnalysisHandler) Handle(w http.ResponseWriter, r *http.Request) {
 	}
 
 	request.ServiceName = strings.TrimSpace(request.ServiceName)
-	if request.ServiceName == "" || request.OldSpec.Paths == nil || request.NewSpec.Paths == nil {
-		http.Error(w, "serviceName, oldSpec.paths and newSpec.paths are required", http.StatusBadRequest)
+	request.OldVersion = strings.TrimSpace(request.OldVersion)
+	request.NewVersion = strings.TrimSpace(request.NewVersion)
+
+	if request.ServiceName == "" ||
+		request.OldVersion == "" ||
+		request.NewVersion == "" ||
+		request.OldSpec.Paths == nil ||
+		request.NewSpec.Paths == nil {
+		http.Error(w, "serviceName, oldVersion, newVersion, oldSpec.paths and newSpec.paths are required", http.StatusBadRequest)
+		return
+	}
+
+	if len(request.ServiceName) > 150 ||
+		len(request.OldVersion) > 100 ||
+		len(request.NewVersion) > 100 {
+		http.Error(w, "Service name or version exceeds the allowed length", http.StatusBadRequest)
 		return
 	}
 
@@ -65,8 +91,12 @@ func (h *AnalysisHandler) Handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	consumers, err := h.repository.GetImpactConsumers(r.Context(), request.ServiceName)
+	consumers, err := h.dependencyRepository.GetImpactConsumers(
+		r.Context(),
+		request.ServiceName,
+	)
 	if err != nil {
+		log.Printf("Failed to retrieve consumer dependencies: %v", err)
 		http.Error(w, "Failed to retrieve consumer dependencies", http.StatusInternalServerError)
 		return
 	}
@@ -78,6 +108,31 @@ func (h *AnalysisHandler) Handle(w http.ResponseWriter, r *http.Request) {
 		Impact:     impact,
 	}
 
+	resultJSON, err := json.Marshal(response)
+	if err != nil {
+		log.Printf("Failed to serialize analysis report: %v", err)
+		http.Error(w, "Failed to serialize analysis report", http.StatusInternalServerError)
+		return
+	}
+
+	report := models.ImpactReport{
+		ServiceName: request.ServiceName,
+		OldVersion:  request.OldVersion,
+		NewVersion:  request.NewVersion,
+		Result:      resultJSON,
+	}
+
+	savedReport, err := h.reportRepository.Create(r.Context(), report)
+	if err != nil {
+		log.Printf("Failed to save analysis report: %v", err)
+		http.Error(w, "Failed to save analysis report", http.StatusInternalServerError)
+		return
+	}
+
+	response.ReportID = savedReport.ID
+
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Printf("Failed to write analysis response: %v", err)
+	}
 }

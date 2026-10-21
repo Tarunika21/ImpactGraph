@@ -63,7 +63,10 @@ func main() {
 	dependencyHandler := handlers.NewDependencyHandler(dependencyRepository)
 
 	storedImpactHandler := handlers.NewStoredImpactHandler(dependencyRepository)
-	analysisHandler := handlers.NewAnalysisHandler(dependencyRepository)
+
+	reportRepository := repositories.NewReportRepository(dbPool)
+	analysisHandler := handlers.NewAnalysisHandler(dependencyRepository, reportRepository)
+	reportHandler := handlers.NewReportHandler(reportRepository)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", healthHandler)
@@ -74,6 +77,7 @@ func main() {
 	mux.HandleFunc("/api/v1/dependencies", dependencyHandler.HandleDependencies)
 	mux.HandleFunc("/api/v1/impact/stored", storedImpactHandler.Handle)
 	mux.HandleFunc("/api/v1/analyze", analysisHandler.Handle)
+	mux.HandleFunc("/api/v1/reports", reportHandler.HandleReports)
 
 	server := &http.Server{
 		Addr:              "127.0.0.1:8081",

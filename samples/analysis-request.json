@@ -1,5 +1,7 @@
 {
   "serviceName": "user-service",
+  "oldVersion": "1.0.0",
+  "newVersion": "2.0.0",
   "oldSpec": {
     "paths": {
       "/users/{id}": {
