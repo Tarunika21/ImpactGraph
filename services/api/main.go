@@ -78,6 +78,7 @@ func main() {
 	mux.HandleFunc("/api/v1/impact/stored", storedImpactHandler.Handle)
 	mux.HandleFunc("/api/v1/analyze", analysisHandler.Handle)
 	mux.HandleFunc("/api/v1/reports", reportHandler.HandleReports)
+	mux.HandleFunc("/api/v1/reports/", reportHandler.HandleReportByID)
 
 	server := &http.Server{
 		Addr:              "127.0.0.1:8081",

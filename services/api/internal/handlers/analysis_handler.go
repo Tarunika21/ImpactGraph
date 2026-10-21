@@ -108,7 +108,13 @@ func (h *AnalysisHandler) Handle(w http.ResponseWriter, r *http.Request) {
 		Impact:     impact,
 	}
 
-	resultJSON, err := json.Marshal(response)
+	resultJSON, err := json.Marshal(struct {
+		Comparison models.ComparisonResponse `json:"comparison"`
+		Impact     models.ImpactResponse     `json:"impact"`
+	}{
+		Comparison: comparison,
+		Impact:     impact,
+	})
 	if err != nil {
 		log.Printf("Failed to serialize analysis report: %v", err)
 		http.Error(w, "Failed to serialize analysis report", http.StatusInternalServerError)

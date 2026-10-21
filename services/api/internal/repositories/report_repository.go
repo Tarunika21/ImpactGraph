@@ -2,11 +2,15 @@ package repositories
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/Tarunika21/ImpactGraph/services/api/internal/models"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+var ErrReportNotFound = errors.New("report not found")
 
 type ReportRepository struct {
 	db *pgxpool.Pool
@@ -52,7 +56,60 @@ func (r *ReportRepository) GetAll(
 		ORDER BY created_at DESC, id DESC
 	`
 
-	rows, err := r.db.Query(ctx, query)
+	return r.queryReports(ctx, query)
+}
+
+func (r *ReportRepository) GetByService(
+	ctx context.Context,
+	serviceName string,
+) ([]models.ImpactReport, error) {
+	query := `
+		SELECT id, service_name, old_version, new_version, result, created_at
+		FROM impact_reports
+		WHERE service_name = $1
+		ORDER BY created_at DESC, id DESC
+	`
+
+	return r.queryReports(ctx, query, serviceName)
+}
+
+func (r *ReportRepository) GetByID(
+	ctx context.Context,
+	id int64,
+) (models.ImpactReport, error) {
+	query := `
+		SELECT id, service_name, old_version, new_version, result, created_at
+		FROM impact_reports
+		WHERE id = $1
+	`
+
+	var report models.ImpactReport
+
+	err := r.db.QueryRow(ctx, query, id).Scan(
+		&report.ID,
+		&report.ServiceName,
+		&report.OldVersion,
+		&report.NewVersion,
+		&report.Result,
+		&report.CreatedAt,
+	)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return models.ImpactReport{}, ErrReportNotFound
+	}
+	if err != nil {
+		return models.ImpactReport{}, fmt.Errorf("get report by ID: %w", err)
+	}
+
+	return report, nil
+}
+
+func (r *ReportRepository) queryReports(
+	ctx context.Context,
+	query string,
+	args ...any,
+) ([]models.ImpactReport, error) {
+	rows, err := r.db.Query(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("query impact reports: %w", err)
 	}
