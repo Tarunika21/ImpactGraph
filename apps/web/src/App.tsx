@@ -1,6 +1,7 @@
 
 import { useEffect, useState } from 'react'
 import './App.css'
+import ComparisonPage from './pages/ComparisonPage'
 
 type Report = {
   id: number
@@ -169,12 +170,7 @@ function App() {
             </>
           )}
 
-          {section === 'comparison' && (
-            <Placeholder
-              title="API Comparison"
-              description="Compare two API contract versions to detect breaking changes."
-            />
-          )}
+         {section === 'comparison' && <ComparisonPage />}
 
           {section === 'impact' && (
             <Placeholder
