@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import './App.css'
 import ComparisonPage from './pages/ComparisonPage'
+import ConsumerImpactPage from './pages/ConsumerImpactPage'
 
 type Report = {
   id: number
@@ -172,12 +173,7 @@ function App() {
 
          {section === 'comparison' && <ComparisonPage />}
 
-          {section === 'impact' && (
-            <Placeholder
-              title="Consumer Impact"
-              description="Identify which applications are affected by API changes."
-            />
-          )}
+          {section === 'impact' && <ConsumerImpactPage />}
         </div>
       </main>
     </div>
@@ -233,17 +229,6 @@ function ReportTable({ reports, loading }: { reports: Report[]; loading: boolean
           ))}
         </tbody>
       </table>
-    </div>
-  )
-}
-
-function Placeholder({ title, description }: { title: string; description: string }) {
-  return (
-    <div className="placeholder">
-      <div className="placeholder-icon">◇</div>
-      <h1>{title}</h1>
-      <p>{description}</p>
-      <span>We'll implement this workflow in the next milestone.</span>
     </div>
   )
 }
