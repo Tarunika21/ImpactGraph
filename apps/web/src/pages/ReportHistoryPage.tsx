@@ -1,111 +1,135 @@
-
-import { useEffect, useState } from 'react'
-import './ReportHistoryPage.css'
+import { useEffect, useRef, useState } from "react";
+import "./ReportHistoryPage.css";
 
 type Change = {
-  type?: string
-  endpoint?: string
-  field?: string
-  breaking?: boolean
-}
+  type?: string;
+  endpoint?: string;
+  field?: string;
+  breaking?: boolean;
+};
 
 type ImpactedConsumer = {
-  consumerId?: string
-  consumerName?: string
-  endpoint?: string
-  reasons?: string[]
-}
+  consumerId?: string;
+  consumerName?: string;
+  endpoint?: string;
+  reasons?: string[];
+};
 
 type ReportResult = {
   comparison?: {
-    totalChanges?: number
-    breakingCount?: number
-    changes?: Change[]
-  }
+    totalChanges?: number;
+    breakingCount?: number;
+    changes?: Change[];
+  };
   impact?: {
-    totalConsumers?: number
-    impactedCount?: number
-    impactedConsumers?: ImpactedConsumer[]
-  }
-}
+    totalConsumers?: number;
+    impactedCount?: number;
+    impactedConsumers?: ImpactedConsumer[];
+  };
+};
 
 type Report = {
-  id: number
-  serviceName: string
-  oldVersion: string
-  newVersion: string
-  createdAt: string
-  result: ReportResult
-}
+  id: number;
+  serviceName: string;
+  oldVersion: string;
+  newVersion: string;
+  createdAt: string;
+  result: ReportResult;
+};
 
 function ReportHistoryPage() {
-  const [reports, setReports] = useState<Report[]>([])
-  const [search, setSearch] = useState('')
-  const [selectedId, setSelectedId] = useState<number | null>(null)
-  const [selectedReport, setSelectedReport] = useState<Report | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [detailsLoading, setDetailsLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [detailsError, setDetailsError] = useState('')
+  const [reports, setReports] = useState<Report[]>([]);
+  const [search, setSearch] = useState("");
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [detailsError, setDetailsError] = useState("");
+  const detailsController = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    const controller = new AbortController()
+    return () => {
+      detailsController.current?.abort();
+    };
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
 
     async function loadReports() {
       try {
-        const response = await fetch('/api/v1/reports', {
+        const response = await fetch("/api/v1/reports", {
           signal: controller.signal,
-        })
+        });
         if (!response.ok) {
-          throw new Error(`Failed to load reports (${response.status})`)
+          throw new Error(`Failed to load reports (${response.status})`);
         }
 
-        const data: Report[] = await response.json()
+        const data: Report[] = await response.json();
         if (!controller.signal.aborted) {
-          setReports(Array.isArray(data) ? data : [])
+          setReports(Array.isArray(data) ? data : []);
         }
       } catch (err) {
         if (!controller.signal.aborted) {
           setError(
-            err instanceof Error ? err.message : 'Unable to load reports.',
-          )
+            err instanceof Error ? err.message : "Unable to load reports.",
+          );
         }
       } finally {
-        if (!controller.signal.aborted) setLoading(false)
+        if (!controller.signal.aborted) setLoading(false);
       }
     }
 
-    void loadReports()
-    return () => controller.abort()
-  }, [])
+    void loadReports();
+    return () => controller.abort();
+  }, []);
 
   async function openReport(id: number) {
+    detailsController.current?.abort();
+    detailsController.current = null;
+
     if (selectedId === id) {
-      setSelectedId(null)
-      setSelectedReport(null)
-      setDetailsError('')
-      return
+      setSelectedId(null);
+      setSelectedReport(null);
+      setDetailsError("");
+      setDetailsLoading(false);
+      return;
     }
 
-    setSelectedId(id)
-    setSelectedReport(null)
-    setDetailsError('')
-    setDetailsLoading(true)
+    const controller = new AbortController();
+    detailsController.current = controller;
+
+    setSelectedId(id);
+    setSelectedReport(null);
+    setDetailsError("");
+    setDetailsLoading(true);
 
     try {
-      const response = await fetch(`/api/v1/reports/${id}`)
+      const response = await fetch(`/api/v1/reports/${id}`, {
+        signal: controller.signal,
+      });
+
       if (!response.ok) {
-        throw new Error(`Failed to load report (${response.status})`)
+        throw new Error(`Failed to load report (${response.status})`);
       }
 
-      const data: Report = await response.json()
-      setSelectedReport(data)
+      const data: Report = await response.json();
+
+      if (!controller.signal.aborted) {
+        setSelectedReport(data);
+      }
     } catch (err) {
-      setDetailsError(
-        err instanceof Error ? err.message : 'Unable to load report details.',
-      )
+      if (!controller.signal.aborted) {
+        setDetailsError(
+          err instanceof Error ? err.message : "Unable to load report details.",
+        );
+      }
     } finally {
-      setDetailsLoading(false)
+      if (!controller.signal.aborted) {
+        setDetailsLoading(false);
+        detailsController.current = null;
+      }
     }
   }
 
@@ -115,9 +139,9 @@ function ReportHistoryPage() {
     )
     .sort(
       (a, b) =>
-        new Date(b.createdAt).getTime() -
-        new Date(a.createdAt).getTime() || b.id - a.id,
-    )
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() ||
+        b.id - a.id,
+    );
 
   return (
     <div className="history-page">
@@ -141,13 +165,17 @@ function ReportHistoryPage() {
         <span>{filteredReports.length} reports</span>
       </div>
 
-      {error && <div className="error-banner" role="alert">{error}</div>}
+      {error && (
+        <div className="error-banner" role="alert">
+          {error}
+        </div>
+      )}
 
       {loading ? (
         <div className="history-empty">Loading reports...</div>
       ) : filteredReports.length === 0 ? (
         <div className="history-empty">
-          {search ? 'No reports match your search.' : 'No saved reports yet.'}
+          {search ? "No reports match your search." : "No saved reports yet."}
         </div>
       ) : (
         <div className="history-list">
@@ -157,7 +185,8 @@ function ReportHistoryPage() {
                 <div>
                   <h2>{report.serviceName}</h2>
                   <p>
-                    Report #{report.id} · {report.oldVersion} → {report.newVersion}
+                    Report #{report.id} · {report.oldVersion} →{" "}
+                    {report.newVersion}
                   </p>
                 </div>
                 <button
@@ -166,16 +195,18 @@ function ReportHistoryPage() {
                   onClick={() => void openReport(report.id)}
                   aria-expanded={selectedId === report.id}
                 >
-                  {selectedId === report.id ? 'Close Details' : 'View Details'}
+                  {selectedId === report.id ? "Close Details" : "View Details"}
                 </button>
               </div>
 
               <div className="history-card-meta">
                 <span>
-                  Breaking changes: {report.result?.comparison?.breakingCount ?? 0}
+                  Breaking changes:{" "}
+                  {report.result?.comparison?.breakingCount ?? 0}
                 </span>
                 <span>
-                  Impacted consumers: {report.result?.impact?.impactedCount ?? 0}
+                  Impacted consumers:{" "}
+                  {report.result?.impact?.impactedCount ?? 0}
                 </span>
                 <span>{new Date(report.createdAt).toLocaleString()}</span>
               </div>
@@ -188,9 +219,7 @@ function ReportHistoryPage() {
                       {detailsError}
                     </div>
                   )}
-                  {selectedReport && (
-                    <ReportDetails report={selectedReport} />
-                  )}
+                  {selectedReport && <ReportDetails report={selectedReport} />}
                 </div>
               )}
             </article>
@@ -198,12 +227,12 @@ function ReportHistoryPage() {
         </div>
       )}
     </div>
-  )
+  );
 }
 
 function ReportDetails({ report }: { report: Report }) {
-  const changes = report.result?.comparison?.changes ?? []
-  const consumers = report.result?.impact?.impactedConsumers ?? []
+  const changes = report.result?.comparison?.changes ?? [];
+  const consumers = report.result?.impact?.impactedConsumers ?? [];
 
   return (
     <>
@@ -230,12 +259,16 @@ function ReportDetails({ report }: { report: Report }) {
           {changes.map((change, index) => (
             <div className="history-detail-item" key={index}>
               <div>
-                <strong>{change.type ?? 'API Change'}</strong>
-                <p>{change.endpoint ?? 'Unknown endpoint'}</p>
+                <strong>{change.type ?? "API Change"}</strong>
+                <p>{change.endpoint ?? "Unknown endpoint"}</p>
                 {change.field && <p>Field: {change.field}</p>}
               </div>
-              <span className={change.breaking ? 'history-breaking' : 'history-safe'}>
-                {change.breaking ? 'Breaking' : 'Non-breaking'}
+              <span
+                className={
+                  change.breaking ? "history-breaking" : "history-safe"
+                }
+              >
+                {change.breaking ? "Breaking" : "Non-breaking"}
               </span>
             </div>
           ))}
@@ -250,8 +283,10 @@ function ReportDetails({ report }: { report: Report }) {
           {consumers.map((consumer, index) => (
             <div className="history-detail-item" key={index}>
               <div>
-                <strong>{consumer.consumerName ?? consumer.consumerId ?? 'Consumer'}</strong>
-                <p>{consumer.endpoint ?? 'Unknown endpoint'}</p>
+                <strong>
+                  {consumer.consumerName ?? consumer.consumerId ?? "Consumer"}
+                </strong>
+                <p>{consumer.endpoint ?? "Unknown endpoint"}</p>
                 {consumer.reasons?.map((reason, reasonIndex) => (
                   <p key={reasonIndex}>Reason: {reason}</p>
                 ))}
@@ -261,7 +296,7 @@ function ReportDetails({ report }: { report: Report }) {
         </div>
       )}
     </>
-  )
+  );
 }
 
-export default ReportHistoryPage
+export default ReportHistoryPage;
