@@ -1,25 +1,24 @@
-
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
-import ReportHistoryPage from './ReportHistoryPage'
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import ReportHistoryPage from "./ReportHistoryPage";
 
 const reports = [
   {
     id: 3,
-    serviceName: 'user-service',
-    oldVersion: '1.0.0',
-    newVersion: '2.0.0',
-    createdAt: '2026-10-24T15:36:00Z',
+    serviceName: "user-service",
+    oldVersion: "1.0.0",
+    newVersion: "2.0.0",
+    createdAt: "2026-10-24T15:36:00Z",
     result: {
       comparison: {
         totalChanges: 1,
         breakingCount: 1,
         changes: [
           {
-            type: 'FIELD_REMOVED',
-            endpoint: 'GET /users/{id}',
-            field: 'name',
+            type: "FIELD_REMOVED",
+            endpoint: "GET /users/{id}",
+            field: "name",
             breaking: true,
           },
         ],
@@ -29,10 +28,10 @@ const reports = [
         impactedCount: 1,
         impactedConsumers: [
           {
-            consumerId: 'frontend-app',
-            consumerName: 'Frontend Application',
-            endpoint: 'GET /users/{id}',
-            reasons: ['FIELD_REMOVED: name'],
+            consumerId: "frontend-app",
+            consumerName: "Frontend Application",
+            endpoint: "GET /users/{id}",
+            reasons: ["FIELD_REMOVED: name"],
           },
         ],
       },
@@ -40,10 +39,10 @@ const reports = [
   },
   {
     id: 4,
-    serviceName: 'payment-service',
-    oldVersion: '1.0.0',
-    newVersion: '1.1.0',
-    createdAt: '2026-10-25T10:00:00Z',
+    serviceName: "payment-service",
+    oldVersion: "1.0.0",
+    newVersion: "1.1.0",
+    createdAt: "2026-10-25T10:00:00Z",
     result: {
       comparison: {
         totalChanges: 0,
@@ -57,138 +56,146 @@ const reports = [
       },
     },
   },
-]
+];
 
-describe('ReportHistoryPage', () => {
+describe("ReportHistoryPage", () => {
   beforeEach(() => {
     vi.stubGlobal(
-      'fetch',
+      "fetch",
       vi.fn(async (input: RequestInfo | URL) => {
-        const url = String(input)
+        const url = String(input);
 
-        if (url === '/api/v1/reports') {
+        if (url === "/api/v1/reports") {
           return {
             ok: true,
             json: async () => reports,
-          } as Response
+          } as Response;
         }
 
-        if (url === '/api/v1/reports/3') {
+        if (url === "/api/v1/reports/3") {
           return {
             ok: true,
             json: async () => reports[0],
-          } as Response
+          } as Response;
         }
 
-        if (url === '/api/v1/reports/4') {
+        if (url === "/api/v1/reports/4") {
           return {
             ok: true,
             json: async () => reports[1],
-          } as Response
+          } as Response;
         }
 
         return {
           ok: false,
           status: 404,
-        } as Response
+        } as Response;
       }),
-    )
-  })
+    );
+  });
 
   afterEach(() => {
-    vi.unstubAllGlobals()
-  })
+    vi.unstubAllGlobals();
+  });
 
-  it('loads and displays saved reports', async () => {
-    render(<ReportHistoryPage />)
+  it("loads and displays saved reports", async () => {
+    render(<ReportHistoryPage />);
 
-    expect(await screen.findByText('user-service')).toBeInTheDocument()
-    expect(screen.getByText('payment-service')).toBeInTheDocument()
-    expect(screen.getByText('2 reports')).toBeInTheDocument()
-  })
+    expect(await screen.findByText("user-service")).toBeInTheDocument();
+    expect(screen.getByText("payment-service")).toBeInTheDocument();
+    expect(screen.getByText("2 reports")).toBeInTheDocument();
+  });
 
-  it('filters reports by service name', async () => {
-    const user = userEvent.setup()
-    render(<ReportHistoryPage />)
+  it("filters reports by service name", async () => {
+    const user = userEvent.setup();
+    render(<ReportHistoryPage />);
 
-    await screen.findByText('user-service')
+    await screen.findByText("user-service");
 
     await user.type(
-      screen.getByRole('searchbox', { name: 'Search by service' }),
-      'payment',
-    )
+      screen.getByRole("searchbox", { name: "Search by service" }),
+      "payment",
+    );
 
-    expect(screen.getByText('payment-service')).toBeInTheDocument()
-    expect(screen.queryByText('user-service')).not.toBeInTheDocument()
-    expect(screen.getByText('1 reports')).toBeInTheDocument()
-  })
+    expect(screen.getByText("payment-service")).toBeInTheDocument();
+    expect(screen.queryByText("user-service")).not.toBeInTheDocument();
+    expect(screen.getByText("1 reports")).toBeInTheDocument();
+  });
 
-  it('opens and closes report details', async () => {
-    const user = userEvent.setup()
-    render(<ReportHistoryPage />)
+  it("opens and closes report details", async () => {
+    const user = userEvent.setup();
+    render(<ReportHistoryPage />);
 
-    const reportCard = (await screen.findByText('user-service')).closest('article')
-    if (!reportCard) throw new Error('Report card not found')
+    const reportCard = (await screen.findByText("user-service")).closest(
+      "article",
+    );
+    if (!reportCard) throw new Error("Report card not found");
 
     await user.click(
-      within(reportCard).getByRole('button', { name: 'View Details' }),
-    )
+      within(reportCard).getByRole("button", { name: "View Details" }),
+    );
 
     await waitFor(() => {
-      expect(within(reportCard).getByText('FIELD_REMOVED')).toBeInTheDocument()
-    })
+      expect(within(reportCard).getByText("FIELD_REMOVED")).toBeInTheDocument();
+    });
 
     expect(
-      within(reportCard).getByText('Frontend Application'),
-    ).toBeInTheDocument()
+      within(reportCard).getByText("Frontend Application"),
+    ).toBeInTheDocument();
 
     await user.click(
-      within(reportCard).getByRole('button', { name: 'Close Details' }),
-    )
+      within(reportCard).getByRole("button", { name: "Close Details" }),
+    );
 
-    expect(within(reportCard).queryByText('FIELD_REMOVED')).not.toBeInTheDocument()
-  })
+    expect(
+      within(reportCard).queryByText("FIELD_REMOVED"),
+    ).not.toBeInTheDocument();
+  });
 
-  it('shows an error when the report list fails', async () => {
+  it("shows an error when the report list fails", async () => {
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: false,
       status: 500,
-    } as Response)
+      text: async () => "",
+    } as Response);
 
-    render(<ReportHistoryPage />)
+    render(<ReportHistoryPage />);
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Failed to load reports (500)',
-    )
-  })
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Request failed with status 500",
+    );
+  });
 
-  it('shows an error when report details fail', async () => {
-    const user = userEvent.setup()
+  it("shows an error when report details fail", async () => {
+    const user = userEvent.setup();
     vi.mocked(fetch).mockImplementation(async (input: RequestInfo | URL) => {
-      if (String(input) === '/api/v1/reports') {
+      if (String(input) === "/api/v1/reports") {
         return {
           ok: true,
           json: async () => reports,
-        } as Response
+        } as Response;
       }
 
       return {
         ok: false,
         status: 500,
-      } as Response
-    })
+        text: async () => "",
+      } as Response;
+    });
 
-    render(<ReportHistoryPage />)
+    render(<ReportHistoryPage />);
 
-    const reportCard = (await screen.findByText('user-service')).closest('article')
-    if (!reportCard) throw new Error('Report card not found')
+    const reportCard = (await screen.findByText("user-service")).closest(
+      "article",
+    );
+    if (!reportCard) throw new Error("Report card not found");
 
     await user.click(
-      within(reportCard).getByRole('button', { name: 'View Details' }),
-    )
+      within(reportCard).getByRole("button", { name: "View Details" }),
+    );
 
-    expect(await within(reportCard).findByRole('alert')).toHaveTextContent(
-      'Failed to load report (500)',
-    )
-  })
-})
+    expect(await within(reportCard).findByRole("alert")).toHaveTextContent(
+      "Request failed with status 500",
+    );
+  });
+});

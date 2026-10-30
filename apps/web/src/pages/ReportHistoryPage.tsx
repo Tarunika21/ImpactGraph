@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { apiRequest } from "../api/client";
 import "./ReportHistoryPage.css";
 
 type Change = {
@@ -59,14 +60,10 @@ function ReportHistoryPage() {
 
     async function loadReports() {
       try {
-        const response = await fetch("/api/v1/reports", {
+        const data = await apiRequest<Report[]>("/api/v1/reports", {
           signal: controller.signal,
         });
-        if (!response.ok) {
-          throw new Error(`Failed to load reports (${response.status})`);
-        }
 
-        const data: Report[] = await response.json();
         if (!controller.signal.aborted) {
           setReports(Array.isArray(data) ? data : []);
         }
@@ -106,15 +103,9 @@ function ReportHistoryPage() {
     setDetailsLoading(true);
 
     try {
-      const response = await fetch(`/api/v1/reports/${id}`, {
+      const data = await apiRequest<Report>(`/api/v1/reports/${id}`, {
         signal: controller.signal,
       });
-
-      if (!response.ok) {
-        throw new Error(`Failed to load report (${response.status})`);
-      }
-
-      const data: Report = await response.json();
 
       if (!controller.signal.aborted) {
         setSelectedReport(data);
