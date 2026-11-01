@@ -1,5 +1,6 @@
 
 import { useState } from 'react'
+import { apiRequest, ApiError } from '../api/client'
 import './ConsumerImpactPage.css'
 
 type Change = {
@@ -102,33 +103,28 @@ function ConsumerImpactPage() {
     setLoading(true)
 
     try {
-      const response = await fetch('/api/v1/analyze', {
+      const data = await apiRequest<AnalysisResponse>('/api/v1/analyze', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+        body: {
           serviceName: serviceName.trim(),
           oldVersion: oldVersion.trim(),
           newVersion: newVersion.trim(),
           oldSpec: parsedOld,
           newSpec: parsedNew,
-        }),
+        },
       })
 
-      if (!response.ok) {
-        const message = await response.text()
-        throw new Error(`Analysis failed (${response.status}): ${message}`)
-      }
-
-      const data: AnalysisResponse = await response.json()
       setResult(data)
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'Unable to complete impact analysis.',
-      )
+      if (err instanceof ApiError) {
+        setError(`Analysis failed (${err.status}): ${err.message}`)
+      } else {
+        setError(
+          err instanceof Error
+            ? err.message
+            : 'Unable to complete impact analysis.',
+        )
+      }
     } finally {
       setLoading(false)
     }
@@ -202,7 +198,11 @@ function ConsumerImpactPage() {
         </div>
 
         <div className="impact-actions">
-          <button className="primary-button" type="submit" disabled={loading}>
+          <button
+            className="primary-button"
+            type="submit"
+            disabled={loading}
+          >
             {loading ? 'Analyzing...' : 'Run Impact Analysis'}
           </button>
           <span>Successful analyses are saved to PostgreSQL.</span>
@@ -222,17 +222,23 @@ function ConsumerImpactPage() {
               <h2>Analysis Results</h2>
               <p>Service: {serviceName}</p>
             </div>
-            <span className="impact-report-id">Report #{result.reportId}</span>
+            <span className="impact-report-id">
+              Report #{result.reportId}
+            </span>
           </div>
 
           <div className="impact-summary">
             <div>
               <small>Total Changes</small>
-              <strong>{result.comparison?.totalChanges ?? 0}</strong>
+              <strong>
+                {result.comparison?.totalChanges ?? 0}
+              </strong>
             </div>
             <div>
               <small>Breaking Changes</small>
-              <strong>{result.comparison?.breakingCount ?? 0}</strong>
+              <strong>
+                {result.comparison?.breakingCount ?? 0}
+              </strong>
             </div>
             <div>
               <small>Impact Analysis</small>

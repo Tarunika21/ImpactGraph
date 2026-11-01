@@ -1,5 +1,6 @@
 
 import { useState } from 'react'
+import { apiRequest, ApiError } from '../api/client'
 import './ComparisonPage.css'
 
 type ComparisonResult = {
@@ -86,32 +87,25 @@ function ComparisonPage() {
     setLoading(true)
 
     try {
-      const response = await fetch('/api/v1/compare', {
+      const data = await apiRequest<ComparisonResult>('/api/v1/compare', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+        body: {
           oldSpec: oldParsed,
           newSpec: newParsed,
-        }),
+        },
       })
 
-      if (!response.ok) {
-        const message = await response.text()
-        throw new Error(
-          `Comparison failed (${response.status}): ${message}`,
-        )
-      }
-
-      const data: ComparisonResult = await response.json()
       setResult(data)
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'Unable to compare API specifications.',
-      )
+      if (err instanceof ApiError) {
+        setError(`Comparison failed (${err.status}): ${err.message}`)
+      } else {
+        setError(
+          err instanceof Error
+            ? err.message
+            : 'Unable to compare specifications.',
+        )
+      }
     } finally {
       setLoading(false)
     }
@@ -189,11 +183,13 @@ function ComparisonPage() {
             </div>
             <div>
               <small>Compatibility</small>
-              <strong className={
-                (result.breakingCount ?? 0) > 0
-                  ? 'comparison-danger'
-                  : 'comparison-success'
-              }>
+              <strong
+                className={
+                  (result.breakingCount ?? 0) > 0
+                    ? 'comparison-danger'
+                    : 'comparison-success'
+                }
+              >
                 {(result.breakingCount ?? 0) > 0
                   ? 'Breaking'
                   : 'No breaking changes'}
