@@ -1,6 +1,6 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from './App'
 
@@ -55,6 +55,7 @@ describe('ImpactGraph App', () => {
         if (url === '/health') {
           return {
             ok: true,
+            status: 200,
             json: async () => ({
               status: 'healthy',
               service: 'impactgraph-api',
@@ -65,6 +66,7 @@ describe('ImpactGraph App', () => {
         if (url === '/api/v1/reports') {
           return {
             ok: true,
+            status: 200,
             json: async () => mockReports,
           } as Response
         }
@@ -72,6 +74,7 @@ describe('ImpactGraph App', () => {
         return {
           ok: false,
           status: 404,
+          text: async () => 'Not found',
         } as Response
       }),
     )
@@ -89,25 +92,42 @@ describe('ImpactGraph App', () => {
     ).toBeInTheDocument()
 
     expect(
-      screen.getByText('Monitor API contract changes and their downstream impact.'),
+      screen.getByText(
+        'Monitor API contract changes and their downstream impact.',
+      ),
     ).toBeInTheDocument()
 
-    expect(await screen.findByText('Go API Connected')).toBeInTheDocument()
+    expect(
+      await screen.findByText('Go API Connected'),
+    ).toBeInTheDocument()
   })
 
   it('displays dashboard statistics from saved reports', async () => {
     render(<App />)
 
-    await waitFor(() => {
-      expect(screen.getByText('Saved Reports')).toBeInTheDocument()
-    })
+    expect(
+      await screen.findByText('user-service'),
+    ).toBeInTheDocument()
 
-    expect(screen.getByText('Services Analyzed')).toBeInTheDocument()
-    expect(screen.getByText('Breaking Changes Found')).toBeInTheDocument()
-    expect(screen.getAllByText('Impacted Consumers').length).toBeGreaterThan(0)
+    expect(
+      screen.getByText('Saved Reports'),
+    ).toBeInTheDocument()
 
-    expect(screen.getByText('user-service')).toBeInTheDocument()
-    expect(screen.getByText('payment-service')).toBeInTheDocument()
+    expect(
+      screen.getByText('Services Analyzed'),
+    ).toBeInTheDocument()
+
+    expect(
+      screen.getByText('Breaking Changes Found'),
+    ).toBeInTheDocument()
+
+    expect(
+      screen.getAllByText('Impacted Consumers').length,
+    ).toBeGreaterThan(0)
+
+    expect(
+      screen.getByText('payment-service'),
+    ).toBeInTheDocument()
   })
 
   it('opens API Comparison from the sidebar', async () => {
@@ -169,25 +189,37 @@ describe('ImpactGraph App', () => {
       screen.getByRole('heading', { name: 'Report History' }),
     ).toBeInTheDocument()
 
-    expect(await screen.findByText('user-service')).toBeInTheDocument()
+    expect(
+      await screen.findByText('user-service'),
+    ).toBeInTheDocument()
   })
 
   it('shows an error when the report API fails', async () => {
     vi.mocked(fetch).mockImplementation(
       async (input: RequestInfo | URL) => {
         if (String(input) === '/health') {
-          return { ok: true } as Response
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              status: 'healthy',
+              service: 'impactgraph-api',
+            }),
+          } as Response
         }
 
         return {
           ok: false,
           status: 500,
+          text: async () => 'Internal server error',
         } as Response
       },
     )
 
     render(<App />)
 
-    expect(await screen.findByText('Report API returned 500')).toBeInTheDocument()
+    expect(
+      await screen.findByText('Report API returned 500'),
+    ).toBeInTheDocument()
   })
 })

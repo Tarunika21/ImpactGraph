@@ -1,8 +1,10 @@
+
 import { useEffect, useState } from "react";
 import "./App.css";
 import ComparisonPage from "./pages/ComparisonPage";
 import ConsumerImpactPage from "./pages/ConsumerImpactPage";
 import ReportHistoryPage from "./pages/ReportHistoryPage";
+import { apiRequest, ApiError } from "./api/client";
 
 type Report = {
   id: number;
@@ -39,31 +41,53 @@ function App() {
   const [apiOnline, setApiOnline] = useState(false);
 
   useEffect(() => {
+    const controller = new AbortController();
+
     async function loadData() {
       try {
-        const [healthResponse, reportsResponse] = await Promise.all([
-          fetch("/health"),
-          fetch("/api/v1/reports"),
+        const healthPromise = apiRequest<unknown>("/health", {
+          signal: controller.signal,
+        })
+          .then(() => true)
+          .catch(() => false);
+
+        const reportsPromise = apiRequest<Report[]>("/api/v1/reports", {
+          signal: controller.signal,
+        });
+
+        const [healthOnline, data] = await Promise.all([
+          healthPromise,
+          reportsPromise,
         ]);
 
-        setApiOnline(healthResponse.ok);
+        if (controller.signal.aborted) return;
 
-        if (!reportsResponse.ok) {
-          throw new Error(`Report API returned ${reportsResponse.status}`);
-        }
-
-        const data: Report[] = await reportsResponse.json();
+        setApiOnline(healthOnline);
         setReports(Array.isArray(data) ? data : []);
       } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Unable to load dashboard",
-        );
+        if (controller.signal.aborted) return;
+
+        setApiOnline(false);
+
+        if (err instanceof ApiError) {
+          setError(`Report API returned ${err.status}`);
+        } else {
+          setError(
+            err instanceof Error ? err.message : "Unable to load dashboard",
+          );
+        }
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
       }
     }
 
     void loadData();
+
+    return () => {
+      controller.abort();
+    };
   }, []);
 
   const totalBreaking = reports.reduce(
@@ -76,8 +100,9 @@ function App() {
     0,
   );
 
-  const uniqueServices = new Set(reports.map((report) => report.serviceName))
-    .size;
+  const uniqueServices = new Set(
+    reports.map((report) => report.serviceName),
+  ).size;
 
   return (
     <div className="app-shell">
@@ -107,7 +132,9 @@ function App() {
 
         <div className="sidebar-footer">
           <span className={`status-dot ${apiOnline ? "online" : ""}`} />
-          <span>Go API {apiOnline ? "Connected" : "Disconnected"}</span>
+          <span>
+            Go API {apiOnline ? "Connected" : "Disconnected"}
+          </span>
         </div>
       </aside>
 
@@ -140,7 +167,11 @@ function App() {
                 </button>
               </div>
 
-              {error && <div className="error-banner">{error}</div>}
+              {error && (
+                <div className="error-banner" role="alert">
+                  {error}
+                </div>
+              )}
 
               <div className="stats-grid">
                 <StatCard
@@ -178,15 +209,17 @@ function App() {
                     View all →
                   </button>
                 </div>
-                <ReportTable reports={reports.slice(0, 5)} loading={loading} />
+
+                <ReportTable
+                  reports={reports.slice(0, 5)}
+                  loading={loading}
+                />
               </div>
             </>
           )}
 
           {section === "reports" && <ReportHistoryPage />}
-
           {section === "comparison" && <ComparisonPage />}
-
           {section === "impact" && <ConsumerImpactPage />}
         </div>
       </main>
@@ -222,9 +255,17 @@ function ReportTable({
   reports: Report[];
   loading: boolean;
 }) {
-  if (loading) return <div className="empty-state">Loading reports...</div>;
-  if (reports.length === 0)
-    return <div className="empty-state">No reports available yet.</div>;
+  if (loading) {
+    return <div className="empty-state">Loading reports...</div>;
+  }
+
+  if (reports.length === 0) {
+    return (
+      <div className="empty-state">
+        No reports available yet.
+      </div>
+    );
+  }
 
   return (
     <div className="table-scroll">
@@ -241,7 +282,9 @@ function ReportTable({
         <tbody>
           {reports.map((report) => (
             <tr key={report.id}>
-              <td className="service-name">{report.serviceName}</td>
+              <td className="service-name">
+                {report.serviceName}
+              </td>
               <td>
                 {report.oldVersion} → {report.newVersion}
               </td>
@@ -255,7 +298,9 @@ function ReportTable({
                   {report.result?.impact?.impactedCount ?? 0}
                 </span>
               </td>
-              <td>{new Date(report.createdAt).toLocaleDateString()}</td>
+              <td>
+                {new Date(report.createdAt).toLocaleDateString()}
+              </td>
             </tr>
           ))}
         </tbody>
