@@ -1,0 +1,40 @@
+
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: impactgraph
+      POSTGRES_USER: impactgraph
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U impactgraph -d impactgraph"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ./services/api
+    environment:
+      DATABASE_URL: postgres://impactgraph:${POSTGRES_PASSWORD}@db:5432/impactgraph?sslmode=disable
+    depends_on:
+      db:
+        condition: service_healthy
+    expose:
+      - "8081"
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./apps/web
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
