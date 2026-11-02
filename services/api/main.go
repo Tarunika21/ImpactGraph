@@ -1,8 +1,10 @@
+
 package main
 
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"os"
@@ -65,10 +67,14 @@ func main() {
 	storedImpactHandler := handlers.NewStoredImpactHandler(dependencyRepository)
 
 	reportRepository := repositories.NewReportRepository(dbPool)
-	analysisHandler := handlers.NewAnalysisHandler(dependencyRepository, reportRepository)
+	analysisHandler := handlers.NewAnalysisHandler(
+		dependencyRepository,
+		reportRepository,
+	)
 	reportHandler := handlers.NewReportHandler(reportRepository)
 
 	mux := http.NewServeMux()
+
 	mux.HandleFunc("/health", healthHandler)
 	mux.HandleFunc("/api/v1/compare", handlers.CompareHandler)
 	mux.HandleFunc("/api/v1/impact", handlers.ImpactHandler)
@@ -81,14 +87,15 @@ func main() {
 	mux.HandleFunc("/api/v1/reports/", reportHandler.HandleReportByID)
 
 	server := &http.Server{
-		Addr:              "127.0.0.1:8081",
+		Addr:              ":8081",
 		Handler:           mux,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
-	log.Println("ImpactGraph API running on http://localhost:8081")
+	log.Println("ImpactGraph API listening on port 8081")
 
-	if err := server.ListenAndServe(); err != nil {
+	if err := server.ListenAndServe(); err != nil &&
+		!errors.Is(err, http.ErrServerClosed) {
 		log.Fatal(err)
 	}
 }
