@@ -15,6 +15,25 @@ jobs:
   backend:
     name: Go Backend
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: impactgraph
+          POSTGRES_PASSWORD: impactgraph_ci_password
+          POSTGRES_DB: impactgraph_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U impactgraph -d impactgraph_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      TEST_DATABASE_URL: postgres://impactgraph:impactgraph_ci_password@localhost:5432/impactgraph_test?sslmode=disable
+
     defaults:
       run:
         working-directory: services/api
@@ -29,11 +48,17 @@ jobs:
           go-version-file: services/api/go.mod
           cache-dependency-path: services/api/go.sum
 
-      - name: Verify dependencies
+      - name: Verify Go dependencies
         run: go mod verify
 
+      - name: Apply test database schema
+        run: |
+          psql "$TEST_DATABASE_URL" \
+            -v ON_ERROR_STOP=1 \
+            -f migrations/001_initial_schema.up.sql
+
       - name: Run Go tests
-        run: go test ./...
+        run: go test -count=1 -v ./...
 
       - name: Build Go API
         run: go build -o impactgraph-api .
@@ -41,6 +66,7 @@ jobs:
   frontend:
     name: React Frontend
     runs-on: ubuntu-latest
+
     defaults:
       run:
         working-directory: apps/web
