@@ -44,7 +44,8 @@ services:
 
   api:
     build:
-      context: ./services/api
+      context: .
+      dockerfile: services/api/Dockerfile
     environment:
       DATABASE_URL: postgres://impactgraph:${POSTGRES_PASSWORD}@db:5432/impactgraph?sslmode=disable
     depends_on:

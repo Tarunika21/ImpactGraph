@@ -1,17 +1,20 @@
 
-# Stage 1: Build the Go application
 FROM golang:1.27.2-alpine AS builder
 
-WORKDIR /app
+WORKDIR /src
 
-COPY go.mod go.sum ./
+COPY services/api/go.mod services/api/go.sum ./services/api/
+COPY packages/openapi-diff/go.mod ./packages/openapi-diff/
+
+WORKDIR /src/services/api
+
 RUN go mod download
 
-COPY . .
+COPY services/api/ /src/services/api/
+COPY packages/openapi-diff/ /src/packages/openapi-diff/
 
 RUN CGO_ENABLED=0 GOOS=linux go build -o /app/impactgraph-api .
 
-# Stage 2: Run the Go application
 FROM alpine:3.22
 
 RUN apk add --no-cache ca-certificates

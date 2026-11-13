@@ -1,0 +1,17 @@
+
+.git
+.github
+.vs
+.vscode
+.idea
+**/node_modules
+**/dist
+**/coverage
+**/.env
+**/.env.*
+**/*.log
+docs/
+apps/
+services/analyzer/
+infrastructure/
+samples/
